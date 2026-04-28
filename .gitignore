@@ -9,6 +9,9 @@ compile_commands.json
 cmake-build-debug-esp-idf/
 .idea/
 
+# 密钥
+main/secrets.h
+
 # OS
 .DS_Store
 Thumbs.db

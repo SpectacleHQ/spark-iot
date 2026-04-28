@@ -49,7 +49,6 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "Connected");
             esp_mqtt_client_subscribe(client, MQTT_TOPIC_SET, 1);
-            esp_mqtt_client_publish(client, MQTT_TOPIC_STATUS, "online", 0, 1, 1);
             state_set(SYS_RUNNING);
             break;
 
@@ -59,30 +58,49 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
             int len = event->data_len < 127 ? event->data_len : 127;
             memcpy(buf, event->data, len);
 
-            /* 解析 JSON 指令（简易字符串匹配） */
+            /*
+             * 解析下发指令，格式：
+             * {"LED_COLOR":[255,0,128],"LightStatus":true}
+             */
             led_cmd_t cmd = {.mode = MODE_STATIC};
             char *p;
-            char *end;
-            long val;
-            if ((p = strstr(buf, "\"r\"")) != nullptr) {
-                val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.r = (uint8_t) val;
+
+            /* 解析 LED_COLOR 数组 [r,g,b] */
+            if ((p = strstr(buf, "LED_COLOR")) != nullptr) {
+                char *arr = strchr(p, '[');
+                if (arr != nullptr) {
+                    char *end;
+                    long r = strtol(arr + 1, &end, 10);
+                    long g = (*end == ',') ? strtol(end + 1, &end, 10) : 0;
+                    long b = (*end == ',') ? strtol(end + 1, &end, 10) : 0;
+                    if (r >= 0 && r <= 255) cmd.r = (uint8_t) r;
+                    if (g >= 0 && g <= 255) cmd.g = (uint8_t) g;
+                    if (b >= 0 && b <= 255) cmd.b = (uint8_t) b;
+                }
             }
-            if ((p = strstr(buf, "\"g\"")) != nullptr) {
-                val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.g = (uint8_t) val;
-            }
-            if ((p = strstr(buf, "\"b\"")) != nullptr) {
-                val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.b = (uint8_t) val;
-            }
-            if ((p = strstr(buf, "\"mode\"")) != nullptr) {
-                val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val < MODE_MAX) cmd.mode = (led_mode_t) val;
+
+            /* 解析 LightStatus（true=保持颜色，false=关闭） */
+            if ((p = strstr(buf, "LightStatus")) != nullptr) {
+                char *val = strchr(p, ':');
+                if (val != nullptr && strstr(val, "false") == val + 1) {
+                    cmd.r = 0;
+                    cmd.g = 0;
+                    cmd.b = 0;
+                }
             }
 
             xQueueSend(led_cmd_queue, &cmd, 0);
             ESP_LOGI(TAG, "Cmd: r=%d g=%d b=%d mode=%d", cmd.r, cmd.g, cmd.b, cmd.mode);
+
+            /* 上报当前状态 */
+            {
+                char resp[96];
+                snprintf(resp, sizeof(resp),
+                         "{\"LED_COLOR\":[%d,%d,%d],\"LightStatus\":%s}",
+                         cmd.r, cmd.g, cmd.b,
+                         (cmd.r || cmd.g || cmd.b) ? "true" : "false");
+                esp_mqtt_client_publish(client, MQTT_TOPIC_STATUS, resp, 0, 1, 0);
+            }
             break;
         }
 
@@ -108,6 +126,9 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
 void mqtt_ctrl_start(void) {
     esp_mqtt_client_config_t cfg = {
         .broker.address.uri = MQTT_BROKER_URI,
+        .credentials.client_id = MQTT_CLIENT_ID,
+        .credentials.username = MQTT_USERNAME,
+        .credentials.authentication.password = MQTT_PASSWORD,
         .session.last_will = {
             .topic = MQTT_TOPIC_STATUS,
             .msg = "offline",

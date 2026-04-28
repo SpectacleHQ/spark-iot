@@ -27,16 +27,8 @@
 /** BLE 配网时广播的设备名称 */
 #define PROV_DEVICE_NAME  "Spark-IoT"
 
-/* ── MQTT 配置 ─────────────────────────────────────────── */
-
-/** MQTT Broker 地址（TODO: 替换为你自己的 broker） */
-#define MQTT_BROKER_URI   "mqtt://broker.emqx.io:1883"
-
-/** MQTT 订阅主题 — 接收控制指令 */
-#define MQTT_TOPIC_SET    "spark-iot/set"
-
-/** MQTT 发布主题 — 上报设备状态（含 LWT） */
-#define MQTT_TOPIC_STATUS "spark-iot/status"
+/* ── MQTT 配置（从 secrets.h 注入，勿在此硬编码）────── */
+#include "secrets.h"
 
 /* ── LED 模式枚举 ──────────────────────────────────────── */
 
