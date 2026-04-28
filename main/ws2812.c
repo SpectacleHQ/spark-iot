@@ -18,10 +18,10 @@
 #define RESET 50  /**< 复位信号：>50μs（50 ticks × 100ns = 5μs，实际由连续发送保证） */
 
 /** RMT 发送通道句柄 */
-static rmt_channel_handle_t channel = NULL;
+static rmt_channel_handle_t channel = nullptr;
 
 /** RMT 拷贝编码器句柄（将 symbol 数组转为 RMT 信号） */
-static rmt_encoder_handle_t encoder = NULL;
+static rmt_encoder_handle_t encoder = nullptr;
 
 /**
  * @brief 初始化 RMT 发送通道和编码器

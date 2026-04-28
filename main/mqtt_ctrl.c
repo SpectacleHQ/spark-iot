@@ -17,11 +17,12 @@
 #include "esp_log.h"
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 static const char *TAG = "mqtt_ctrl";
 
 /** MQTT 客户端句柄 */
-static esp_mqtt_client_handle_t client = NULL;
+static esp_mqtt_client_handle_t client = nullptr;
 
 /**
  * @brief MQTT 事件处理回调
@@ -60,12 +61,23 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
             /* 解析 JSON 指令（简易字符串匹配） */
             led_cmd_t cmd = {.mode = MODE_STATIC};
             char *p;
-            if ((p = strstr(buf, "\"r\"")) != NULL) cmd.r = atoi(strchr(p, ':') + 1);
-            if ((p = strstr(buf, "\"g\"")) != NULL) cmd.g = atoi(strchr(p, ':') + 1);
-            if ((p = strstr(buf, "\"b\"")) != NULL) cmd.b = atoi(strchr(p, ':') + 1);
-            if ((p = strstr(buf, "\"mode\"")) != NULL) {
-                int m = atoi(strchr(p, ':') + 1);
-                if (m >= 0 && m < MODE_MAX) cmd.mode = (led_mode_t)m;
+            char *end;
+            long val;
+            if ((p = strstr(buf, "\"r\"")) != nullptr) {
+                val = strtol(strchr(p, ':') + 1, &end, 10);
+                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.r = (uint8_t)val;
+            }
+            if ((p = strstr(buf, "\"g\"")) != nullptr) {
+                val = strtol(strchr(p, ':') + 1, &end, 10);
+                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.g = (uint8_t)val;
+            }
+            if ((p = strstr(buf, "\"b\"")) != nullptr) {
+                val = strtol(strchr(p, ':') + 1, &end, 10);
+                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.b = (uint8_t)val;
+            }
+            if ((p = strstr(buf, "\"mode\"")) != nullptr) {
+                val = strtol(strchr(p, ':') + 1, &end, 10);
+                if (end != strchr(p, ':') + 1 && val >= 0 && val < MODE_MAX) cmd.mode = (led_mode_t)val;
             }
 
             xQueueSend(led_cmd_queue, &cmd, 0);
@@ -104,6 +116,6 @@ void mqtt_ctrl_start(void)
         },
     };
     client = esp_mqtt_client_init(&cfg);
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, nullptr);
     esp_mqtt_client_start(client);
 }

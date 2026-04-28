@@ -93,8 +93,8 @@ void wifi_prov_init(void)
     esp_wifi_init(&wifi_cfg);
 
     /* 注册 WiFi 断线和获取 IP 事件 */
-    esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, wifi_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);
+    esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, wifi_event_handler, nullptr);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, nullptr);
 
     bool provisioned = false;
     network_prov_mgr_is_wifi_provisioned(&provisioned);
@@ -108,7 +108,7 @@ void wifi_prov_init(void)
     } else {
         /* 未配网：启动 BLE 配网 */
         ESP_LOGI(TAG, "Starting BLE provisioning...");
-        esp_event_handler_register(NETWORK_PROV_EVENT, ESP_EVENT_ANY_ID, prov_event_handler, NULL);
+        esp_event_handler_register(NETWORK_PROV_EVENT, ESP_EVENT_ANY_ID, prov_event_handler, nullptr);
 
         network_prov_mgr_config_t prov_cfg = {
             .scheme = network_prov_scheme_ble,
@@ -118,9 +118,9 @@ void wifi_prov_init(void)
 
         network_prov_mgr_start_provisioning(
             NETWORK_PROV_SECURITY_2,
-            NULL,
+            nullptr,
             PROV_DEVICE_NAME,
-            NULL
+            nullptr
         );
     }
 }

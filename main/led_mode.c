@@ -127,5 +127,5 @@ static void led_task(void *arg)
  */
 void led_mode_start(void)
 {
-    xTaskCreate(led_task, "led_task", 4096, NULL, 5, NULL);
+    xTaskCreate(led_task, "led_task", 4096, nullptr, 5, nullptr);
 }
