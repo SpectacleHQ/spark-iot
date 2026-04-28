@@ -1,3 +1,16 @@
+/**
+ * @file mqtt_ctrl.c
+ * @brief MQTT 控制实现
+ *
+ * MQTT 指令协议（spark-iot/set）：
+ *   JSON 格式，字段均可选：{"r":255,"g":0,"b":128,"mode":1}
+ *
+ * 状态上报（spark-iot/status）：
+ *   上线时发布 "online"，断线时通过 LWT 发布 "offline"（retained）
+ *
+ * 接收到的指令通过解析后发送到 led_cmd_queue。
+ */
+
 #include "mqtt_ctrl.h"
 #include "config.h"
 #include "mqtt_client.h"
@@ -6,8 +19,26 @@
 #include <stdlib.h>
 
 static const char *TAG = "mqtt_ctrl";
+
+/** MQTT 客户端句柄 */
 static esp_mqtt_client_handle_t client = NULL;
 
+/**
+ * @brief MQTT 事件处理回调
+ *
+ * 处理以下事件：
+ * - CONNECTED：订阅控制主题，发布上线状态
+ * - DATA：解析 JSON 指令并发送到 LED 指令队列
+ * - DISCONNECTED：记录断线日志
+ *
+ * JSON 解析使用简单的字符串搜索（非完整 JSON 解析器），
+ * 仅提取 "r"、"g"、"b"、"mode" 四个字段。
+ *
+ * @param arg 未使用
+ * @param base 事件基
+ * @param event_id 事件 ID
+ * @param event_data MQTT 事件数据
+ */
 static void mqtt_event_handler(void *arg, esp_event_base_t base,
                                int32_t event_id, void *event_data)
 {
@@ -21,10 +52,12 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
             break;
 
         case MQTT_EVENT_DATA: {
+            /* 将消息拷贝到本地缓冲区并确保 null 结尾 */
             char buf[128] = {0};
             int len = event->data_len < 127 ? event->data_len : 127;
             memcpy(buf, event->data, len);
 
+            /* 解析 JSON 指令（简易字符串匹配） */
             led_cmd_t cmd = {.mode = MODE_STATIC};
             char *p;
             if ((p = strstr(buf, "\"r\"")) != NULL) cmd.r = atoi(strchr(p, ':') + 1);
@@ -49,6 +82,15 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
     }
 }
 
+/**
+ * @brief 启动 MQTT 客户端
+ *
+ * 配置项：
+ * - Broker 地址：MQTT_BROKER_URI
+ * - LWT 主题：spark-iot/status，消息 "offline"，QoS 1，retained
+ *
+ * 注册事件处理后启动连接。
+ */
 void mqtt_ctrl_start(void)
 {
     esp_mqtt_client_config_t cfg = {
