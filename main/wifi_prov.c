@@ -12,7 +12,7 @@
 
 #include "wifi_prov.h"
 #include "config.h"
-#include "mqtt_ctrl.h"
+#include "state_machine.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -39,11 +39,12 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
 {
     if (base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGW(TAG, "WiFi disconnected, reconnecting...");
+        state_set(SYS_RECONNECTING);
         esp_wifi_connect();
     } else if (base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-        mqtt_ctrl_start();
+        state_set(SYS_WIFI_GOT_IP);
     }
 }
 
@@ -64,9 +65,11 @@ static void prov_event_handler(void *arg, esp_event_base_t base,
         switch (event_id) {
             case NETWORK_PROV_START:
                 ESP_LOGI(TAG, "Provisioning started");
+                state_set(SYS_PROVISIONING);
                 break;
             case NETWORK_PROV_DEINIT:
                 ESP_LOGI(TAG, "Provisioning done, BLE released");
+                state_set(SYS_PROV_SUCCESS);
                 break;
             default:
                 break;
@@ -101,12 +104,14 @@ void wifi_prov_init(void)
 
     if (provisioned) {
         /* 已配网：直接连接 */
+        state_set(SYS_WIFI_CONNECTING);
         ESP_LOGI(TAG, "Already provisioned, connecting WiFi...");
         esp_wifi_set_mode(WIFI_MODE_STA);
         esp_wifi_start();
         esp_wifi_connect();
     } else {
         /* 未配网：启动 BLE 配网 */
+        state_set(SYS_NOT_PROVISIONED);
         ESP_LOGI(TAG, "Starting BLE provisioning...");
         esp_event_handler_register(NETWORK_PROV_EVENT, ESP_EVENT_ANY_ID, prov_event_handler, nullptr);
 
@@ -115,6 +120,7 @@ void wifi_prov_init(void)
             .scheme_event_handler = NETWORK_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
         };
         network_prov_mgr_init(prov_cfg);
+        state_set(SYS_PROV_STARTING);
 
         network_prov_mgr_start_provisioning(
             NETWORK_PROV_SECURITY_2,

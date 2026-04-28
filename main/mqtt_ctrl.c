@@ -13,6 +13,7 @@
 
 #include "mqtt_ctrl.h"
 #include "config.h"
+#include "state_machine.h"
 #include "mqtt_client.h"
 #include "esp_log.h"
 #include <string.h>
@@ -41,15 +42,15 @@ static esp_mqtt_client_handle_t client = nullptr;
  * @param event_data MQTT 事件数据
  */
 static void mqtt_event_handler(void *arg, esp_event_base_t base,
-                               int32_t event_id, void *event_data)
-{
+                               int32_t event_id, void *event_data) {
     esp_mqtt_event_handle_t event = event_data;
 
-    switch ((esp_mqtt_event_id_t)event_id) {
+    switch ((esp_mqtt_event_id_t) event_id) {
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "Connected");
             esp_mqtt_client_subscribe(client, MQTT_TOPIC_SET, 1);
             esp_mqtt_client_publish(client, MQTT_TOPIC_STATUS, "online", 0, 1, 1);
+            state_set(SYS_RUNNING);
             break;
 
         case MQTT_EVENT_DATA: {
@@ -65,19 +66,19 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
             long val;
             if ((p = strstr(buf, "\"r\"")) != nullptr) {
                 val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.r = (uint8_t)val;
+                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.r = (uint8_t) val;
             }
             if ((p = strstr(buf, "\"g\"")) != nullptr) {
                 val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.g = (uint8_t)val;
+                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.g = (uint8_t) val;
             }
             if ((p = strstr(buf, "\"b\"")) != nullptr) {
                 val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.b = (uint8_t)val;
+                if (end != strchr(p, ':') + 1 && val >= 0 && val <= 255) cmd.b = (uint8_t) val;
             }
             if ((p = strstr(buf, "\"mode\"")) != nullptr) {
                 val = strtol(strchr(p, ':') + 1, &end, 10);
-                if (end != strchr(p, ':') + 1 && val >= 0 && val < MODE_MAX) cmd.mode = (led_mode_t)val;
+                if (end != strchr(p, ':') + 1 && val >= 0 && val < MODE_MAX) cmd.mode = (led_mode_t) val;
             }
 
             xQueueSend(led_cmd_queue, &cmd, 0);
@@ -87,6 +88,7 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
 
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGW(TAG, "Disconnected");
+            state_set(SYS_RECONNECTING);
             break;
 
         default:
@@ -103,8 +105,7 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
  *
  * 注册事件处理后启动连接。
  */
-void mqtt_ctrl_start(void)
-{
+void mqtt_ctrl_start(void) {
     esp_mqtt_client_config_t cfg = {
         .broker.address.uri = MQTT_BROKER_URI,
         .session.last_will = {

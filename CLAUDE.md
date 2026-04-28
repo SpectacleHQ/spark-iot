@@ -38,12 +38,13 @@ The system boots, loads saved LED state from NVS, then either connects to WiFi (
 
 ### Modules
 
-- `config.h` — All hardware pins, MQTT topics/broker, mode enum, command struct, global queue declaration
+- `config.h` — All hardware pins (LED GPIO48, BTN GPIO45), MQTT topics/broker, mode enum, command struct, global queue declaration
 - `ws2812.c` — WS2812 driver using RMT peripheral (10MHz tick, manual bit-bang encoding)
-- `led_mode.c` — FreeRTOS task that consumes the command queue, runs LED animation modes, and persists state
+- `led_mode.c` — FreeRTOS task that consumes the command queue, runs LED animation modes, and persists state (only active in SYS_RUNNING)
 - `storage.c` — NVS wrapper for saving/loading RGB + mode
-- `wifi_prov.c` — WiFi STA setup + BLE-based network provisioning (uses `network_provisioning` component)
-- `mqtt_ctrl.c` — MQTT client that subscribes to `spark-iot/set`, publishes LWT on `spark-iot/status`
+- `wifi_prov.c` — WiFi STA setup + BLE-based network provisioning, reports state via state_set()
+- `mqtt_ctrl.c` — MQTT client that subscribes to `spark-iot/set`, publishes LWT on `spark-iot/status`, reports connection state via state_set()
+- `state_machine.c` — System state machine: LED status indicators for each state, reset button (GPIO45 long-press 3s) detection
 
 ### MQTT Command Protocol
 

@@ -13,6 +13,7 @@
 #include "led_mode.h"
 #include "ws2812.h"
 #include "storage.h"
+#include "state_machine.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -73,6 +74,12 @@ static void led_task(void *arg)
     int8_t breath_dir = 5;   /**< 呼吸模式亮度变化方向和步长 */
 
     while (1) {
+        /* 非 RUNNING 状态时让出 CPU，LED 由状态机控制 */
+        if (state_get() != SYS_RUNNING) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
+
         /* 非阻塞读取指令队列 */
         led_cmd_t new_cmd;
         if (xQueueReceive(led_cmd_queue, &new_cmd, 0) == pdTRUE) {

@@ -4,4 +4,5 @@ idf_component_register(SRCS "spark-iot.c"
                             "led_mode.c"
                             "wifi_prov.c"
                             "mqtt_ctrl.c"
+                            "state_machine.c"
                        INCLUDE_DIRS ".")

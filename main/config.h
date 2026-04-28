@@ -19,6 +19,9 @@
 /** RMT 外设时钟分辨率（10MHz，对应 100ns/tick） */
 #define RMT_RESOLUTION_HZ 10000000
 
+/** 重置按钮引脚（外部下拉，按下为高电平） */
+#define BTN_GPIO          45
+
 /* ── 配网配置 ─────────────────────────────────────────── */
 
 /** BLE 配网时广播的设备名称 */
@@ -41,10 +44,10 @@
  * @brief LED 灯效模式
  */
 typedef enum {
-    MODE_STATIC = 0,  /**< 静态常亮 */
-    MODE_RAINBOW,     /**< 彩虹渐变 */
-    MODE_BREATH,      /**< 呼吸灯 */
-    MODE_MAX,         /**< 模式数量上限（哨兵值） */
+    MODE_STATIC = 0, /**< 静态常亮 */
+    MODE_RAINBOW, /**< 彩虹渐变 */
+    MODE_BREATH, /**< 呼吸灯 */
+    MODE_MAX, /**< 模式数量上限（哨兵值） */
 } led_mode_t;
 
 /* ── LED 指令结构体 ────────────────────────────────────── */
@@ -53,8 +56,8 @@ typedef enum {
  * @brief LED 控制指令，通过 FreeRTOS 队列在模块间传递
  */
 typedef struct {
-    uint8_t r, g, b;   /**< 目标颜色（RGB 各 0-255） */
-    led_mode_t mode;    /**< 目标灯效模式 */
+    uint8_t r, g, b; /**< 目标颜色（RGB 各 0-255） */
+    led_mode_t mode; /**< 目标灯效模式 */
 } led_cmd_t;
 
 /* ── 全局指令队列 ──────────────────────────────────────── */
