@@ -1,0 +1,26 @@
+CompileFlags:
+  Add:
+    - -Wno-unknown-warning-option
+  Remove:
+    - -mlongcalls
+    - -specs=*
+    - -fno-builtin-*
+    - -fno-shrink-wrap
+    - -fno-jump-tables
+    - -fno-tree-switch-conversion
+    - -fno-malloc-dce
+    - -fzero-init-padding-bits=*
+    - -fstrict-volatile-bitfields
+    - -fmacro-prefix-map=*
+    - -Wno-old-style-declaration
+    - -Wno-error=*
+    - -Wextra
+    - -Wno-unused-parameter
+    - -Wno-sign-compare
+    - -Wno-enum-conversion
+    - -gdwarf-4
+    - -ggdb
+    - -Og
+    - -fdata-sections
+    - -ffunction-sections
+    - -fdiagnostics-color=always
